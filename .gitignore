@@ -1,2 +1,6 @@
 data/cabg_by_subject_id/*
-!data/cabg_by_subject_id/.gitkeep
+!data/cabg_by_subject_id/README.md
+data/hosp/*
+!data/hosp/README.md
+data/icu/*
+!data/icu/README.md

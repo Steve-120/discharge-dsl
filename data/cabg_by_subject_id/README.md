@@ -1,0 +1,1 @@
+Put your patient data here. Each directory here should be named with the patient's `subject_id`. The structure of each directory should be like MIMIC-IV, e.g. it has the `hosp`, `icu`, `note` subdirectories, and within each are the `.csv` files like `icu/chartevents.csv`
