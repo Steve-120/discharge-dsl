@@ -1,0 +1,6 @@
+flask>=3.0
+pyyaml>=6.0
+dspy>=2.5
+pandas
+rapidfuzz
+tiktoken

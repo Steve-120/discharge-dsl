@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Discharge Instructions Drafter</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f4f6f9;
+  --card: #ffffff;
+  --border: #d1d8e0;
+  --border-focus: #4a90d9;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --danger: #dc2626;
+  --warn: #d97706;
+  --success: #16a34a;
+  --muted: #6b7280;
+  --text: #111827;
+  --tag-high: #dcfce7;
+  --tag-high-text: #166534;
+  --tag-med: #fef3c7;
+  --tag-med-text: #92400e;
+  --tag-low: #fee2e2;
+  --tag-low-text: #991b1b;
+  --tag-null: #e5e7eb;
+  --tag-null-text: #4b5563;
+  --radius: 8px;
+  --shadow: 0 1px 3px rgba(0,0,0,.1);
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+header {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+header h1 { font-size: 16px; font-weight: 600; }
+header .hint { margin-left: auto; font-size: 12px; color: var(--muted); }
+
+main {
+  max-width: 900px;
+  margin: 24px auto;
+  padding: 0 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+
+label { font-weight: 500; display: block; margin-bottom: 4px; }
+
+input[type=text], input[type=number], select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 14px;
+  color: var(--text);
+  background: white;
+  transition: border-color .15s;
+}
+input[type=text]:focus, input[type=number]:focus, select:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(74,144,217,.15);
+}
+
+button {
+  padding: 9px 18px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background .15s, opacity .15s;
+}
+button:disabled { opacity: .5; cursor: not-allowed; }
+
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+.btn-secondary { background: white; color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover:not(:disabled) { background: var(--bg); }
+.btn-danger { background: var(--danger); color: white; }
+
+.row { display: flex; gap: 12px; align-items: flex-end; }
+.row > * { flex: 1; }
+.row > button { flex: 0 0 auto; }
+
+.error-box {
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  color: var(--danger);
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.spinner {
+  width: 32px; height: 32px;
+  border: 3px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  margin: 20px auto;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Template section cards ─────────────────────────────────────────────── */
+.section-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  cursor: pointer;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+.section-header:hover { background: #f1f5f9; }
+.section-title { font-weight: 600; font-size: 14px; }
+.section-chevron { margin-left: auto; transition: transform .2s; font-size: 12px; }
+.section-chevron.open { transform: rotate(90deg); }
+
+.section-body { padding: 16px; display: none; }
+.section-body.open { display: block; }
+
+/* Include / Exclude toggle */
+.include-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 14px;
+}
+.include-row label { margin: 0; font-weight: 500; flex: 0 0 60px; }
+.radio-group { display: flex; gap: 16px; }
+.radio-group label { margin: 0; font-weight: 400; display: flex; align-items: center; gap: 5px; cursor: pointer; }
+.radio-group input[type=radio] { accent-color: var(--primary); width: 15px; height: 15px; }
+.unresolved-indicator {
+  margin-left: auto;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+/* Params row */
+.params-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.param-item { min-width: 160px; }
+.param-item label { font-size: 12px; color: var(--muted); margin-bottom: 3px; }
+.param-item select, .param-item .bool-group { width: auto; min-width: 160px; }
+.bool-group { display: flex; gap: 12px; }
+.bool-group label { margin: 0; font-weight: 400; display: flex; align-items: center; gap: 5px; cursor: pointer; }
+
+/* Confidence badge */
+.conf-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.conf-high  { background: var(--tag-high); color: var(--tag-high-text); }
+.conf-medium { background: var(--tag-med);  color: var(--tag-med-text); }
+.conf-low   { background: var(--tag-low);  color: var(--tag-low-text); }
+.conf-null  { background: var(--tag-null); color: var(--tag-null-text); }
+
+/* Template preview */
+.template-preview {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  background: #fafbfc;
+  font-size: 13px;
+  line-height: 1.8;
+  word-break: break-word;
+}
+.template-preview .field-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  vertical-align: bottom;
+  margin: 0 2px;
+}
+.template-preview input.tfield {
+  display: inline;
+  width: auto;
+  min-width: 80px;
+  padding: 1px 6px;
+  border: none;
+  border-bottom: 2px solid var(--primary);
+  border-radius: 0;
+  background: transparent;
+  font-size: 13px;
+  color: var(--text);
+  font-family: inherit;
+}
+.template-preview input.tfield:focus {
+  outline: none;
+  border-bottom-color: var(--primary-hover);
+  box-shadow: none;
+}
+.template-preview input.tfield.empty {
+  border-bottom-color: var(--danger);
+}
+.template-preview .field-hint {
+  font-size: 9px;
+  color: var(--muted);
+  line-height: 1;
+  margin-top: 1px;
+}
+.preview-disabled { color: var(--muted); font-style: italic; }
+
+/* Validation bar */
+.validation-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  font-size: 13px;
+}
+.validation-bar.ok  { background: #f0fdf4; border: 1px solid #86efac; color: var(--success); }
+.validation-bar.bad { background: #fef2f2; border: 1px solid #fca5a5; color: var(--danger); }
+.validation-bar button { margin-left: auto; }
+
+/* Final output */
+.output-box {
+  font-family: "Courier New", monospace;
+  font-size: 13px;
+  white-space: pre-wrap;
+  background: #1e293b;
+  color: #e2e8f0;
+  padding: 16px;
+  border-radius: 6px;
+  line-height: 1.7;
+}
+
+/* Sticky bottom action bar */
+.action-bar {
+  position: sticky;
+  bottom: 0;
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  padding: 12px 24px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 99;
+}
+
+/* Section status dots */
+.status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-dot.ok     { background: var(--success); }
+.status-dot.warn   { background: var(--warn); }
+.status-dot.empty  { background: var(--danger); }
+.status-dot.skip   { background: #d1d5db; }
+
+/* Source tag */
+.source-tag {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: #ede9fe;
+  color: #5b21b6;
+  font-weight: 600;
+}
+
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<header>
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2">
+    <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+    <rect x="9" y="3" width="6" height="4" rx="1"/>
+    <path d="M9 12h6M9 16h4"/>
+  </svg>
+  <h1>Discharge Instructions Drafter</h1>
+  <span class="hint">Press <kbd>F2</kbd> to jump to next unresolved field</span>
+</header>
+
+<main id="main">
+
+  <!-- Step 1: Patient Input -->
+  <div class="card" id="step-input">
+    <h2 style="font-size:15px;font-weight:600;margin-bottom:14px;">Patient Lookup</h2>
+    <div class="row" style="align-items:flex-end;gap:12px;">
+      <div>
+        <label for="subject_id">Subject ID</label>
+        <input type="number" id="subject_id" placeholder="e.g. 10001">
+      </div>
+      <div>
+        <label for="hadm_id">Admission ID (hadm_id)</label>
+        <input type="number" id="hadm_id" placeholder="e.g. 20000">
+      </div>
+      <div>
+        <label for="data_dir">MIMIC Data Directory</label>
+        <input type="text" id="data_dir" placeholder="/path/to/mimic">
+      </div>
+      <button class="btn-primary" id="btn-run" onclick="runModules()">Run Modules</button>
+    </div>
+    <div id="run-error" class="error-box hidden" style="margin-top:12px;"></div>
+  </div>
+
+  <!-- Step 2: Loading -->
+  <div id="step-loading" class="card hidden" style="text-align:center;padding:30px;">
+    <div class="spinner"></div>
+    <p id="loading-msg" style="color:var(--muted);margin-top:8px;">Running DSPy modules…</p>
+  </div>
+
+  <!-- Step 3: Form sections (rendered dynamically) -->
+  <div id="step-form" class="hidden">
+    <div id="module-results-bar" class="card" style="font-size:13px;"></div>
+    <div id="sections-container" style="display:flex;flex-direction:column;gap:10px;margin-top:12px;"></div>
+  </div>
+
+</main>
+
+<!-- Action bar -->
+<div id="action-bar" class="action-bar hidden">
+  <div id="validation-status" class="validation-bar bad" style="flex:1;">
+    <span id="validation-msg">Checking…</span>
+    <button class="btn-secondary" id="btn-jump" onclick="jumpToNextIssue()">Jump to issue (F2)</button>
+  </div>
+  <button class="btn-primary" id="btn-generate" onclick="generateOutput()" disabled>Generate Instructions</button>
+</div>
+
+<!-- Final output modal -->
+<div id="output-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;display:none;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:10px;padding:24px;max-width:780px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+    <div style="display:flex;align-items:center;margin-bottom:16px;">
+      <h2 style="font-size:16px;font-weight:600;">Discharge Instructions</h2>
+      <button class="btn-secondary" style="margin-left:auto;margin-right:8px;" onclick="copyOutput()">Copy</button>
+      <button class="btn-secondary" onclick="document.getElementById('output-modal').style.display='none'">Close</button>
+    </div>
+    <pre id="output-text" class="output-box"></pre>
+  </div>
+</div>
+
+<script>
+// ── API base: use relative URLs when served by Flask, absolute when opening
+//    the HTML file directly (e.g. preview panel uses a non-http origin).
+const API_BASE = (() => {
+  try {
+    const origin = new URL(window.location.href).origin;
+    return (origin === "null" || origin === "file://") ? "http://localhost:5000" : "";
+  } catch { return "http://localhost:5000"; }
+})();
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  GLOBAL STATE
+// ═══════════════════════════════════════════════════════════════════════════
+let TEMPLATES = null;      // raw YAML as JS object
+let MODULE_RESULTS = null; // outputs from /api/run-modules
+let TEMPLATE_FIELD_VALUES = {}; // shared across all keys: { fieldName: value }
+
+// Per-key UI state (populated when form renders)
+// KEY_STATE[key] = { include: true|false|null, params: {}, fields: {field:value} }
+let KEY_STATE = {};
+
+// ── Template key metadata ──────────────────────────────────────────────────
+// params: list of param names used by this key for template resolution
+// includeSource: which module result drives the default include
+// defaultInclude: fallback when no source
+const KEY_META = {
+  prevena:          { label:"Prevena Wound Dressing",    params:[],                                                              includeSource:"has_prevena" },
+  shower:           { label:"Daily Shower/Bath",         params:["bath_type","reading_level","is_prevena_used"],                 defaultInclude:true },
+  no_baths:         { label:"No Baths",                  params:["reading_level","prefer_manual_clearance"],                    defaultInclude:true },
+  inspect_incision: { label:"Inspect Incision",          params:["reading_level","is_prevena_used"],                            defaultInclude:true },
+  no_lotions:       { label:"No Lotions/Creams",         params:["reading_level"],                                              defaultInclude:true },
+  sunscreen:        { label:"Sunscreen",                 params:["reading_level"],                                              defaultInclude:true },
+  logging:          { label:"Daily Weight & Temp",       params:["reading_level"],                                              defaultInclude:true },
+  weight_gain:      { label:"Weight Gain Alert",         params:[],                                                              defaultInclude:true },
+  fever:            { label:"Fever Alert",               params:["reading_level"],                                              defaultInclude:true },
+  no_driving:       { label:"No Driving",                params:["reading_level","prefer_manual_clearance"],                    defaultInclude:true },
+  no_lifting:       { label:"No Lifting",                params:["reading_level","prefer_manual_clearance"],                    defaultInclude:true },
+  shoulder:         { label:"Shoulder Movement",         params:[],                                                              includeSource:"encourage_shoulder" },
+  binder:           { label:"Binder/Bra",                params:["reading_level","is_female","binder_type"],                    defaultInclude:true },
+  monitor_wound:    { label:"Monitor Wound",             params:[],                                                              defaultInclude:true },
+  contact:          { label:"Contact Surgeon",           params:["reading_level"],                                              defaultInclude:true },
+  red_flags:        { label:"Red Flags",                 params:["reading_level"],                                              defaultInclude:true },
+  fluid_restriction:{ label:"Fluid Restriction",         params:["prefer_manual_clearance"],                                    defaultInclude:true },
+  smoking:          { label:"Smoking Cessation",         params:["reading_level","is_nicoderm_given"],                          includeSource:"uses_tobacco" },
+  alcohol:          { label:"No Alcohol",                params:[],                                                              defaultInclude:true },
+  nsaid:            { label:"No NSAIDs",                 params:[],                                                              defaultInclude:true },
+  coumadin:         { label:"Coumadin/Warfarin",         params:[],                                                              includeSource:"coumadin_needed" },
+};
+
+// ── Parameter option definitions ───────────────────────────────────────────
+const PARAM_DEFS = {
+  bath_type:              { type:"enum", options:["SHOWER","BED_BATH","WASH"],                                   default:"SHOWER",   label:"Bath Type" },
+  reading_level:          { type:"enum", options:["SIMPLE","STANDARD","DETAILED"],                               default:"STANDARD", label:"Reading Level" },
+  prefer_manual_clearance:{ type:"bool",                                                                          default:true,       label:"Manual Clearance" },
+  binder_type:            { type:"enum", options:["NONE","STERNAL","CHEST","ABDOMINAL","ABDOMINAL_TO_CHEST"],    default:"NONE",     label:"Binder Type" },
+  is_nicoderm_given:      { type:"bool",                                                                          default:false,      label:"Nicoderm Given" },
+  // sourced from module results:
+  is_prevena_used:        { type:"bool", source:"has_prevena",         label:"Prevena Used" },
+  is_female:              { type:"bool", source:"is_female",           label:"Is Female" },
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  TEMPLATE RESOLVER (mirrors Python build_phrase_from_parameters)
+// ═══════════════════════════════════════════════════════════════════════════
+const READING_LEVELS = ["SIMPLE","STANDARD","DETAILED"];
+
+function resolveNode(node, params) {
+  if (typeof node === "string") return node;
+  if (node === null || node === undefined) return "";
+  if (typeof node !== "object") return String(node);
+
+  const entries = Object.entries(node);
+  if (entries.length !== 1) return ""; // shouldn't happen
+  const [paramName, options] = entries[0];
+
+  if (paramName === "reading_level") {
+    const lvl = params["reading_level"] ?? "STANDARD";
+    const idx = READING_LEVELS.indexOf(lvl);
+    for (let i = idx; i >= 0; i--) {
+      if (READING_LEVELS[i] in options) return resolveNode(options[READING_LEVELS[i]], params);
+    }
+    return "";
+  }
+
+  const val = params[paramName];
+  if (val === null || val === undefined) return "";
+
+  if (typeof val === "boolean") {
+    const key = val ? "true" : "false";
+    return resolveNode(options[key] ?? "", params);
+  }
+
+  // enum string
+  if (val in options) return resolveNode(options[val], params);
+  if ("otherwise" in options) return resolveNode(options["otherwise"], params);
+  return "";
+}
+
+function getUnformattedLine(key, params) {
+  const templatePhrases = TEMPLATES[key];
+  if (!templatePhrases) return "";
+  let result = "";
+  for (const [, node] of Object.entries(templatePhrases)) {
+    result += resolveNode(node, params);
+  }
+  return result;
+}
+
+// Extract {field} placeholders from a template string
+function extractFields(str) {
+  const fields = new Set();
+  for (const m of str.matchAll(/\{(\w+)\}/g)) fields.add(m[1]);
+  return fields;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  STEP 1: Run modules
+// ═══════════════════════════════════════════════════════════════════════════
+async function runModules() {
+  const sid = document.getElementById("subject_id").value.trim();
+  const hid = document.getElementById("hadm_id").value.trim();
+  const dataDir = document.getElementById("data_dir").value.trim();
+
+  if (!sid || !hid) {
+    showError("run-error", "Please enter both Subject ID and Admission ID.");
+    return;
+  }
+
+  document.getElementById("run-error").classList.add("hidden");
+  document.getElementById("step-loading").classList.remove("hidden");
+  document.getElementById("step-form").classList.add("hidden");
+  document.getElementById("action-bar").classList.add("hidden");
+  document.getElementById("btn-run").disabled = true;
+
+  setLoading("Loading templates…");
+  try {
+    if (!TEMPLATES) {
+      const tr = await fetch(`${API_BASE}/api/templates`);
+      if (!tr.ok) throw new Error(`Server returned ${tr.status}`);
+      TEMPLATES = await tr.json();
+    }
+
+    // Load config defaults into data_dir field if empty
+    if (!dataDir) {
+      const cr = await fetch(`${API_BASE}/api/config`);
+      if (cr.ok) {
+        const cfg = await cr.json();
+        document.getElementById("data_dir").value = cfg.data_dir;
+      }
+    }
+
+    setLoading("Running DSPy modules (this may take a minute)…");
+    const body = { subject_id: parseInt(sid), hadm_id: parseInt(hid) };
+    if (document.getElementById("data_dir").value.trim()) body.data_dir = document.getElementById("data_dir").value.trim();
+
+    const res = await fetch(`${API_BASE}/api/run-modules`, { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body) });
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(JSON.stringify(data));
+    MODULE_RESULTS = data.results;
+
+    if (Object.keys(data.errors).length > 0) {
+      showError("run-error", "Some modules had errors:\n" + Object.entries(data.errors).map(([k,v]) => `[${k}]: ${v.split("\n").slice(-2).join(" ")}`).join("\n"));
+      document.getElementById("run-error").classList.remove("hidden");
+    }
+
+    renderForm();
+    document.getElementById("step-loading").classList.add("hidden");
+    document.getElementById("step-form").classList.remove("hidden");
+    document.getElementById("action-bar").classList.remove("hidden");
+    validateAll();
+  } catch (err) {
+    const isConnErr = err instanceof TypeError && (err.message.includes("fetch") || err.message.includes("Failed") || err.message.includes("URL"));
+    const msg = isConnErr
+      ? `Cannot reach the Flask server.\n\nStart it with:\n  cd web && python app.py\n\nThen access the app at http://localhost:5000\n\n(Technical: ${err.message})`
+      : "Error: " + err.message;
+    showError("run-error", msg);
+    document.getElementById("step-loading").classList.add("hidden");
+  } finally {
+    document.getElementById("btn-run").disabled = false;
+  }
+}
+
+function setLoading(msg) {
+  document.getElementById("loading-msg").textContent = msg;
+}
+
+function showError(id, msg) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.classList.remove("hidden");
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  STEP 3: Render form
+// ═══════════════════════════════════════════════════════════════════════════
+function renderModuleResultsBar() {
+  const r = MODULE_RESULTS;
+  const conf = (arr) => (arr ?? []).join(", ") || "—";
+
+  function badge(val, confs, isBoolean=true) {
+    const confStr = conf(confs);
+    const hasHigh = (confs??[]).every(c=>c==="high") && (confs??[]).length>0;
+    const cls = !confs ? "conf-null" : hasHigh ? "conf-high" : (confs??[]).includes("medium") ? "conf-medium" : "conf-low";
+    const display = isBoolean ? (val===null ? "null (low/med confidence)" : (val ? "true" : "false")) : (val===null ? "null" : val);
+    return `<span class="conf-badge ${cls}">${display} [${confStr}]</span>`;
+  }
+
+  const items = [
+    ["has_prevena",       badge(r.has_prevena, r.has_prevena_confidence)],
+    ["shoulder",          badge(r.encourage_shoulder, r.encourage_shoulder_confidence)],
+    ["coumadin needed",   badge(r.coumadin_needed, r.coumadin_confidence)],
+    ["is_female",         `<span class="conf-badge conf-high">${r.is_female===null?"null":(r.is_female?"true":"false")}</span>`],
+    ["uses_tobacco",      `<span class="conf-badge conf-high">${r.uses_tobacco===null?"null":(r.uses_tobacco?"true":"false")}</span>`],
+  ];
+
+  document.getElementById("module-results-bar").innerHTML =
+    `<div style="font-weight:600;margin-bottom:10px;font-size:13px;">Module Results</div>` +
+    `<div style="display:flex;flex-wrap:wrap;gap:10px;">` +
+    items.map(([lbl, val]) => `<div style="display:flex;align-items:center;gap:6px;font-size:12px;"><span style="color:var(--muted)">${lbl}:</span>${val}</div>`).join("") +
+    `</div>`;
+}
+
+function getDefaultInclude(key) {
+  const meta = KEY_META[key];
+  if (meta.includeSource) {
+    const src = meta.includeSource;
+    const val = MODULE_RESULTS[src];
+    return val; // true, false, or null
+  }
+  return meta.defaultInclude !== undefined ? meta.defaultInclude : true;
+}
+
+function getDefaultParams(key) {
+  const meta = KEY_META[key];
+  const params = {};
+  for (const pname of (meta.params ?? [])) {
+    const def = PARAM_DEFS[pname];
+    if (!def) continue;
+    if (def.source) {
+      // sourced from module result
+      params[pname] = MODULE_RESULTS[def.source];
+    } else {
+      params[pname] = def.default;
+    }
+  }
+  return params;
+}
+
+function renderForm() {
+  renderModuleResultsBar();
+  KEY_STATE = {};
+  TEMPLATE_FIELD_VALUES = {};
+
+  const container = document.getElementById("sections-container");
+  container.innerHTML = "";
+
+  const keys = Object.keys(KEY_META);
+  for (const key of keys) {
+    if (!TEMPLATES[key]) continue; // key not in yaml (shouldn't happen)
+
+    const defaultInclude = getDefaultInclude(key);
+    const defaultParams = getDefaultParams(key);
+
+    KEY_STATE[key] = {
+      include: defaultInclude,
+      params: defaultParams,
+    };
+
+    const section = buildSection(key, defaultInclude, defaultParams);
+    container.appendChild(section);
+  }
+
+  // Open the first section by default
+  const first = container.querySelector(".section-body");
+  if (first) {
+    first.classList.add("open");
+    const chev = first.previousElementSibling.querySelector(".section-chevron");
+    if (chev) chev.classList.add("open");
+  }
+
+  // Sync fields on input
+  document.addEventListener("input", onFieldInput, { capture: true });
+}
+
+function buildSection(key, defaultInclude, defaultParams) {
+  const meta = KEY_META[key];
+  const wrapper = document.createElement("div");
+  wrapper.className = "section-card";
+  wrapper.dataset.key = key;
+
+  // ── Header ────────────────────────────────────────────────────────────────
+  const header = document.createElement("div");
+  header.className = "section-header";
+  header.innerHTML = `
+    <span class="status-dot" id="dot-${key}"></span>
+    <span class="section-title">${meta.label}</span>
+    ${meta.includeSource ? `<span class="source-tag">from model</span>` : ""}
+    <span class="section-chevron" id="chev-${key}">▶</span>
+  `;
+  header.onclick = () => toggleSection(key);
+
+  // ── Body ──────────────────────────────────────────────────────────────────
+  const body = document.createElement("div");
+  body.className = "section-body";
+  body.id = `body-${key}`;
+
+  body.appendChild(buildIncludeRow(key, defaultInclude, meta));
+  body.appendChild(buildParamsRow(key, meta, defaultParams));
+  body.appendChild(buildPreview(key, defaultParams));
+
+  wrapper.appendChild(header);
+  wrapper.appendChild(body);
+  return wrapper;
+}
+
+function buildIncludeRow(key, defaultInclude, meta) {
+  const row = document.createElement("div");
+  row.className = "include-row";
+  row.id = `include-row-${key}`;
+
+  let confBadge = "";
+  if (meta.includeSource) {
+    const src = meta.includeSource;
+    const confs = MODULE_RESULTS[src + "_confidence"] ?? (src === "is_female" || src === "uses_tobacco" ? ["high"] : null);
+    const confStr = (confs ?? []).join(", ") || "—";
+    const confCls = !confs ? "conf-null" : confs.every(c=>c==="high") ? "conf-high" : confs.includes("medium") ? "conf-medium" : "conf-low";
+    confBadge = `<span class="conf-badge ${confCls}" style="margin-left:8px;">${confStr}</span>`;
+  }
+
+  const trueChecked  = defaultInclude === true  ? "checked" : "";
+  const falseChecked = defaultInclude === false ? "checked" : "";
+
+  row.innerHTML = `
+    <label>Include?</label>
+    <div class="radio-group">
+      <label><input type="radio" name="include-${key}" value="true"  ${trueChecked}  onchange="onIncludeChange('${key}', true)">  Include</label>
+      <label><input type="radio" name="include-${key}" value="false" ${falseChecked} onchange="onIncludeChange('${key}', false)"> Exclude</label>
+    </div>
+    ${confBadge}
+    <span class="unresolved-indicator" id="unresolved-${key}" style="display:none;"></span>
+  `;
+
+  if (defaultInclude === null) {
+    // Mark as unresolved
+    const indicator = row.querySelector(`#unresolved-${key}`);
+    indicator.style.display = "";
+    indicator.style.background = "#fee2e2";
+    indicator.style.color = "#991b1b";
+    indicator.textContent = "Selection required";
+  }
+
+  return row;
+}
+
+function buildParamsRow(key, meta, defaultParams) {
+  const wrapper = document.createElement("div");
+  if ((meta.params ?? []).length === 0) return wrapper;
+
+  const grid = document.createElement("div");
+  grid.className = "params-grid";
+  grid.id = `params-${key}`;
+
+  for (const pname of meta.params) {
+    const def = PARAM_DEFS[pname];
+    if (!def) continue;
+
+    const item = document.createElement("div");
+    item.className = "param-item";
+
+    const currentVal = defaultParams[pname];
+    const isSourced = !!def.source;
+    const sourceNote = isSourced ? ` <span class="source-tag">from model</span>` : "";
+
+    item.innerHTML = `<label>${def.label}${sourceNote}</label>`;
+
+    if (def.type === "enum") {
+      const sel = document.createElement("select");
+      sel.id = `param-${key}-${pname}`;
+      sel.dataset.key = key;
+      sel.dataset.param = pname;
+      sel.onchange = () => onParamChange(key);
+      for (const opt of def.options) {
+        const o = document.createElement("option");
+        o.value = opt;
+        o.textContent = opt.replace(/_/g, " ");
+        if (opt === (currentVal ?? def.default)) o.selected = true;
+        sel.appendChild(o);
+      }
+      if (isSourced && currentVal === null) {
+        const o = document.createElement("option");
+        o.value = "";
+        o.textContent = "— unresolved —";
+        o.selected = true;
+        sel.insertBefore(o, sel.firstChild);
+        sel.style.borderColor = "var(--danger)";
+      }
+      item.appendChild(sel);
+    } else {
+      // bool
+      const trueChecked  = currentVal === true  ? "checked" : "";
+      const falseChecked = currentVal === false ? "checked" : "";
+      item.innerHTML += `
+        <div class="bool-group">
+          <label><input type="radio" name="param-${key}-${pname}" value="true"  ${trueChecked}  onchange="onParamChange('${key}')"> Yes</label>
+          <label><input type="radio" name="param-${key}-${pname}" value="false" ${falseChecked} onchange="onParamChange('${key}')"> No</label>
+        </div>
+      `;
+      if (isSourced && currentVal === null) {
+        item.innerHTML += `<div style="font-size:11px;color:var(--danger);margin-top:3px;">Selection required</div>`;
+      }
+    }
+
+    grid.appendChild(item);
+  }
+
+  wrapper.appendChild(grid);
+  return wrapper;
+}
+
+function buildPreview(key, params) {
+  const wrap = document.createElement("div");
+  wrap.id = `preview-wrap-${key}`;
+  refreshPreview(key, params, wrap);
+  return wrap;
+}
+
+function refreshPreview(key, params, container) {
+  if (!container) container = document.getElementById(`preview-wrap-${key}`);
+  if (!container) return;
+
+  const include = KEY_STATE[key]?.include;
+
+  if (include === false) {
+    container.innerHTML = `<div class="template-preview preview-disabled">Excluded from output.</div>`;
+    return;
+  }
+
+  const unformatted = getUnformattedLine(key, params);
+  if (!unformatted) {
+    container.innerHTML = `<div class="template-preview preview-disabled">(no output — check parameters)</div>`;
+    return;
+  }
+
+  // Render with inline text fields for {placeholder}s
+  const fields = extractFields(unformatted);
+  let html = `<div class="template-preview" id="preview-${key}">`;
+
+  // Split on {field} placeholders
+  const parts = unformatted.split(/(\{[^}]+\})/g);
+  for (const part of parts) {
+    const m = part.match(/^\{(\w+)\}$/);
+    if (m) {
+      const fname = m[1];
+      const val = TEMPLATE_FIELD_VALUES[fname] ?? "";
+      const isEmpty = val === "";
+      html += `<span class="field-wrap"><input class="tfield${isEmpty?" empty":""}" type="text" data-field="${fname}" value="${escapeAttr(val)}" placeholder="…" style="width:${Math.max(80, fname.length*8)}px"><span class="field-hint">${fname}</span></span>`;
+    } else {
+      html += escapeHtml(part);
+    }
+  }
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  EVENT HANDLERS
+// ═══════════════════════════════════════════════════════════════════════════
+function toggleSection(key) {
+  const body = document.getElementById(`body-${key}`);
+  const chev = document.getElementById(`chev-${key}`);
+  body.classList.toggle("open");
+  chev.classList.toggle("open");
+}
+
+function onIncludeChange(key, value) {
+  KEY_STATE[key].include = value;
+  // Hide "selection required" indicator
+  const ind = document.getElementById(`unresolved-${key}`);
+  if (ind) ind.style.display = "none";
+  refreshPreview(key, KEY_STATE[key].params);
+  updateSectionDot(key);
+  validateAll();
+}
+
+function onParamChange(key) {
+  const meta = KEY_META[key];
+  const params = {};
+  for (const pname of (meta.params ?? [])) {
+    const def = PARAM_DEFS[pname];
+    if (!def) continue;
+    if (def.type === "enum") {
+      const sel = document.getElementById(`param-${key}-${pname}`);
+      if (sel) params[pname] = sel.value || null;
+      else params[pname] = KEY_STATE[key].params[pname];
+    } else {
+      const checked = document.querySelector(`input[name="param-${key}-${pname}"]:checked`);
+      if (checked) params[pname] = checked.value === "true";
+      else params[pname] = KEY_STATE[key].params[pname];
+    }
+  }
+  KEY_STATE[key].params = params;
+  refreshPreview(key, params);
+  validateAll();
+}
+
+function onFieldInput(e) {
+  if (!e.target.classList.contains("tfield")) return;
+  const fname = e.target.dataset.field;
+  const value = e.target.value;
+  TEMPLATE_FIELD_VALUES[fname] = value;
+
+  // Sync all other inputs with same field name
+  document.querySelectorAll(`.tfield[data-field="${fname}"]`).forEach(inp => {
+    if (inp !== e.target) inp.value = value;
+    inp.classList.toggle("empty", value === "");
+  });
+
+  validateAll();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  VALIDATION
+// ═══════════════════════════════════════════════════════════════════════════
+function gatherIssues() {
+  const issues = []; // { element, key, type: 'include'|'param'|'field', description }
+
+  for (const key of Object.keys(KEY_META)) {
+    if (!TEMPLATES[key]) continue;
+    const state = KEY_STATE[key];
+    if (!state) continue;
+
+    // 1. Unresolved include?
+    if (state.include === null) {
+      const radios = document.querySelectorAll(`input[name="include-${key}"]`);
+      issues.push({ element: radios[0], key, type:"include", description: `${KEY_META[key].label}: include/exclude not selected` });
+    }
+
+    if (state.include === false) continue; // excluded, skip further checks
+
+    // 2. Unresolved params?
+    for (const pname of (KEY_META[key].params ?? [])) {
+      const def = PARAM_DEFS[pname];
+      if (!def) continue;
+      const val = state.params[pname];
+      if (val === null || val === undefined) {
+        if (def.type === "enum") {
+          const sel = document.getElementById(`param-${key}-${pname}`);
+          if (sel) issues.push({ element:sel, key, type:"param", description:`${KEY_META[key].label}: ${def.label} not selected` });
+        } else {
+          const radio = document.querySelector(`input[name="param-${key}-${pname}"]`);
+          if (radio) issues.push({ element:radio, key, type:"param", description:`${KEY_META[key].label}: ${def.label} not selected` });
+        }
+      }
+    }
+
+    // 3. Empty template fields?
+    const unformatted = getUnformattedLine(key, state.params);
+    const fields = extractFields(unformatted);
+    for (const fname of fields) {
+      if (!TEMPLATE_FIELD_VALUES[fname] || TEMPLATE_FIELD_VALUES[fname] === "") {
+        const inp = document.querySelector(`.tfield[data-field="${fname}"]`);
+        if (inp) issues.push({ element:inp, key, type:"field", description:`${KEY_META[key].label}: "${fname}" is empty` });
+      }
+    }
+  }
+
+  return issues;
+}
+
+function validateAll() {
+  const issues = gatherIssues();
+  const bar = document.getElementById("validation-status");
+  const msg = document.getElementById("validation-msg");
+  const btn = document.getElementById("btn-generate");
+
+  // Update section dots
+  for (const key of Object.keys(KEY_META)) updateSectionDot(key);
+
+  if (issues.length === 0) {
+    bar.className = "validation-bar ok";
+    msg.textContent = "All fields complete — ready to generate.";
+    btn.disabled = false;
+  } else {
+    bar.className = "validation-bar bad";
+    msg.textContent = `${issues.length} issue${issues.length>1?"s":""} remaining. Press F2 or click "Jump to issue".`;
+    btn.disabled = true;
+  }
+}
+
+function updateSectionDot(key) {
+  const dot = document.getElementById(`dot-${key}`);
+  if (!dot) return;
+  const state = KEY_STATE[key];
+  if (!state) return;
+
+  if (state.include === null) { dot.className="status-dot empty"; return; }
+  if (state.include === false) { dot.className="status-dot skip"; return; }
+
+  // Check params
+  for (const pname of (KEY_META[key].params ?? [])) {
+    if (state.params[pname] === null || state.params[pname] === undefined) {
+      dot.className="status-dot warn"; return;
+    }
+  }
+
+  // Check fields
+  const unformatted = getUnformattedLine(key, state.params);
+  for (const fname of extractFields(unformatted)) {
+    if (!TEMPLATE_FIELD_VALUES[fname]) { dot.className="status-dot empty"; return; }
+  }
+
+  dot.className = "status-dot ok";
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  F2 NAVIGATION
+// ═══════════════════════════════════════════════════════════════════════════
+let _lastJumpIndex = -1;
+
+function jumpToNextIssue() {
+  const issues = gatherIssues();
+  if (issues.length === 0) return;
+
+  _lastJumpIndex = (_lastJumpIndex + 1) % issues.length;
+  const issue = issues[_lastJumpIndex];
+  const el = issue.element;
+
+  // Open the section first
+  const body = document.getElementById(`body-${issue.key}`);
+  const chev = document.getElementById(`chev-${issue.key}`);
+  if (body && !body.classList.contains("open")) {
+    body.classList.add("open");
+    chev?.classList.add("open");
+  }
+
+  // Scroll into view and focus
+  el.scrollIntoView({ behavior:"smooth", block:"center" });
+  setTimeout(() => {
+    el.focus();
+    if (el.tagName === "INPUT" && el.type === "text") el.select();
+  }, 200);
+}
+
+document.addEventListener("keydown", e => {
+  if (e.key === "F2") { e.preventDefault(); jumpToNextIssue(); }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  GENERATE FINAL OUTPUT
+// ═══════════════════════════════════════════════════════════════════════════
+async function generateOutput() {
+  const lines = [];
+
+  for (const key of Object.keys(KEY_META)) {
+    if (!TEMPLATES[key]) continue;
+    const state = KEY_STATE[key];
+    if (!state || state.include !== true) continue;
+
+    const params = { ...state.params, ...TEMPLATE_FIELD_VALUES };
+    const unformatted = getUnformattedLine(key, params);
+    if (!unformatted) continue;
+
+    // Format: replace {field} with the actual value
+    let formatted = unformatted;
+    for (const [fname, val] of Object.entries(TEMPLATE_FIELD_VALUES)) {
+      formatted = formatted.replaceAll(`{${fname}}`, val);
+    }
+    lines.push("- " + formatted);
+  }
+
+  const output = lines.join("\n");
+  document.getElementById("output-text").textContent = output;
+  document.getElementById("output-modal").style.display = "flex";
+}
+
+function copyOutput() {
+  const text = document.getElementById("output-text").textContent;
+  navigator.clipboard.writeText(text).catch(() => {
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand("copy");
+    ta.remove();
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════════════════════════════════════
+function escapeHtml(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+function escapeAttr(s) {
+  return String(s).replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+(async () => {
+  try {
+    const r = await fetch(`${API_BASE}/api/config`);
+    if (r.ok) {
+      const cfg = await r.json();
+      document.getElementById("data_dir").value = cfg.data_dir;
+    }
+  } catch(_) {
+    // Server not running yet — user will start it before clicking Run
+  }
+})();
+</script>
+</body>
+</html>
