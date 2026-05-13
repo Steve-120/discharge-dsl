@@ -1,0 +1,56 @@
+{
+  "diuretics_module.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [],
+    "signature": {
+      "instructions": "Read the given patient data who has undergone CABG surgery, then determine if the patient needs to be discharged with instructions regarding diuretics use. Include your confidence level, and evidence to support your answer.",
+      "fields": [
+        {
+          "prefix": "Patient Info:",
+          "description": "${patient_info}"
+        },
+        {
+          "prefix": "Diagnoses List:",
+          "description": "${diagnoses_list}"
+        },
+        {
+          "prefix": "Procedures List:",
+          "description": "${procedures_list}"
+        },
+        {
+          "prefix": "Lab Measurements:",
+          "description": "${lab_measurements}"
+        },
+        {
+          "prefix": "Medications:",
+          "description": "Medications administered to patient while in hospital"
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Needs Diuretic Instruction:",
+          "description": "${needs_diuretic_instruction}"
+        },
+        {
+          "prefix": "Confidence Level:",
+          "description": "${confidence_level}"
+        },
+        {
+          "prefix": "Evidence List:",
+          "description": "List of evidences supporting the decision. Return an EMPTY LIST [] if no relevant\nevidence is found in the patient data.\n\nIf evidence exists, each item shoulder have:\n1. `tag` and `index`: of form [LABEL:index] for patient_info, diagnoses_list, procedures_list, lab_measurements, medications\n2. `content`: the EXACT verbatim text copied from the input (not your own words or reasoning)\n3. `reasoning`: why this specific text supports the decision\n\nIMPORTANT: `content` must be a direct quote from the input fields. If you cannot point to\na specific passage, do not fabricate an evidence entry — return an empty list instead."
+        }
+      ]
+    },
+    "lm": null
+  },
+  "metadata": {
+    "dependency_versions": {
+      "python": "3.12",
+      "dspy": "3.1.3",
+      "cloudpickle": "3.1"
+    }
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "has_prevena_module.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [],
+    "signature": {
+      "instructions": "# Prevena Discharge‑Decision Assistant – Revised Detailed Instructions\n\n## 1. Goal\nFor each **single patient record** you receive, decide **whether the patient should be discharged with Prevena (closed‑incision negative‑pressure wound therapy) instructions** and produce a **fully reproducible JSON‑like output** that documents:\n\n* the logical reasoning,\n* the binary decision (`has_prevena`),\n* a confidence level (`high`, `medium`, or `low`),\n* every line of the input that was used as evidence,\n* the numeric identifiers of those lines, and\n* an empty placeholder for free‑text spans (`\"DC\": []`).\n\n> **Critical rule:** Prevena is considered **only if the patient had a coronary artery bypass graft (CABG)**. If no CABG is identified, the answer is always `has_prevena = False` (confidence = `low`), and **no other risk factors are examined**.\n\n---\n\n## 2. Input Structure (always in this order)\n\n| Section | Tag prefix | Example line | What to look for |\n|---------|------------|--------------|------------------|\n| **Patient information** | `[PT:<n>]` | `[PT:1] Age: 73` | Demographics, admission/discharge details |\n| **Diagnoses list** | `[DX:<n>]` | `[DX:15] Morbid (severe) obesity due to excess calories` | Comorbidities and any mention of infection |\n| **Procedures list** | `[PROC:<n>]` | `[PROC:1] Bypass Coronary Artery, One Artery from Left Internal Mammary, Open Approach` | Identify CABG and procedure‑related risk factors |\n| **ICU chart events** | `[CHART:<n>]` | `[CHART:2089] Item: Incision Drainage #2, Time: Jul-31 20:00, Value: Serosanguineous` | Wound‑related observations |\n\n*The `<n>` is the **exact integer that appears after the colon** in the source line. Use this integer unchanged as the `index` field in the output (no offset or subtraction).*\n\n---\n\n## 3. Extraction Rules\n\n### 3.1 Patient‑related risk factors (from **DX** and **PT**)\n\n| Risk | How to detect (case‑insensitive, substring match) |\n|------|---------------------------------------------------|\n| **Obesity / morbid obesity** | the word **“obesity”** anywhere in a DX line |\n| **Diabetes mellitus** | the word **“diabetes”** |\n| **Chronic lung disease / COPD / pulmonary hypertension** | **“copd”**, **“chronic lung”**, or **“pulmonary hypertension”** |\n| **Smoking / nicotine dependence** | **“nicotine”**, **“smoking”**, **“tobacco”**, or **“nicotine dependence”** |\n| **Advanced age** | **Age ≥ 75** (taken from the `Age:` field in PT) |\n\nIf **any** of the above is present → `patient_risk = True`.\n\n### 3.2 Procedure‑related risk factors (from **PROC**)\n\n1. **Detect CABG**  \n   *A line is a CABG **iff** it contains the exact phrase **“bypass coronary artery”** (case‑insensitive).**  \n   *If no such line exists → `has_prevena = False` immediately (confidence = `low`).*\n\n2. **Multi‑vessel CABG** (counts as a risk)  \n   *Satisfied when **either** of the following is true:*  \n\n   * a) The line contains **one of the exact substrings** (case‑insensitive):  \n      - “Two Arteries”  \n      - “Three Arteries”  \n      - “Four Arteries” … (continue for higher numbers)  \n\n   * b) **Counting separate graft entries**: each PROC line that *explicitly* describes a graft (e.g., “Single internal mammary‑coronary artery bypass”, “Bypass … from Aorta with Autologous Venous Tissue”, etc.) is counted as **one graft**.  \n      - **≥ 3 total graft lines** → multi‑vessel risk.  \n      - **≥ 2 arterial graft lines** (lines that mention “internal mammary”, “arterial”, “artery” together with “bypass”) → multi‑vessel risk.  \n\n   *Do NOT infer multi‑vessel status from vague wording such as “two coronary arteries” or “bypass of two coronary arteries” unless the exact substrings above appear or the counting rule is met.*\n\n3. **Prosthetic material** – any PROC line containing **“synthetic graft”**, **“vascular prosthesis”**, or **“prosthetic”**.\n\n4. **Sternal fixation / sternotomy complications** – any PROC line containing **“sternal fixation”**, **“sternotomy”**, or **“sternum repair”**.\n\n5. **Re‑operation / redo‑CABG** – any PROC line containing **“repeat”**, **“revision”**, or **“redo”**.\n\nIf **any** of items 2‑5 is true → `procedure_risk = True`.\n\n### 3.3 Wound‑related risk factors (from **CHART** and **DX**)\n\n| Risk | Detection |\n|------|-----------|\n| **Wound disruption / dehiscence** | CHART `Item` contains **“Disruption”**, **“Dehiscence”**, or **“Disruption of internal operation (surgical) wound”**. |\n| **Infection / sepsis** | DX line contains **“infection”**, **“sepsis”**, or a specific pathogen name (e.g., **“MRSA”**, **“Klebsiella”**, etc.). |\n| **Concerning drainage** | CHART line where `Item` is **“Incision Drainage”** (or “Impaired Skin Drainage”) **and** the `Value` field is present **and** contains any of: **“Serosanguineous”**, **“Purulent”**, **“Sanguineous”**, **“Large”**, **“Scant”**, **“Moderate”**, **“Small”**. |\n| **Other concerning appearance** | CHART `Item` = **“Incision Appearance”** with a `Value` **different from** “Clean and Dry”. *These alone do NOT create a risk but may lower confidence if no other risk is present.* |\n\nIf **any** of the first three rows is true → `wound_risk = True`.\n\n### 3.4 Discharge‑related risk factor (from **PT**)\n\n*The discharge location is considered **non‑home** when the `Discharge location:` field is **anything other than** one of the following (case‑insensitive, exact match not required):*  \n\n- “HOME”  \n- “HOME HEALTH CARE”  \n- “HOME‑BASED”  \n\nIf the location is non‑home **and** at least **one other risk factor** (`patient_risk`, `procedure_risk`, or `wound_risk`) is true → `discharge_non_home = True`.  \nOtherwise → `discharge_non_home = False`.\n\n---\n\n## 4. Decision Logic\n\n1. **CABG check** – If no CABG line is found →  \n   ```json\n   {\n     \"has_prevena\": false,\n     \"confidence_level\": [\"low\"],\n     ...\n   }\n   ```\n   (skip all other checks).\n\n2. **Collect risks** using the rules above:  \n   - `patient_risk` (DX/age)  \n   - `procedure_risk` (multi‑vessel, prosthetic, sternal, redo)  \n   - `wound_risk` (disruption, infection, drainage)  \n   - `discharge_non_home` (non‑home discharge *and* any other risk)\n\n3. **Overall risk**:  \n   `any_risk = patient_risk OR procedure_risk OR wound_risk OR discharge_non_home`\n\n4. **Set `has_prevena`**  \n   - If `any_risk` is **True** → `has_prevena = True`  \n   - Else → `has_prevena = False`\n\n5. **Assign confidence level**\n\n| Situation | Confidence |\n|-----------|------------|\n| **High** – At least one **clear** risk factor (e.g., multi‑vessel CABG, documented serosanguineous drainage, obesity, diabetes, prosthetic material, sternal fixation, redo‑CABG) **and** wound data show no contradictory findings (all wound entries are “Intact”, “Dry”, “Clean and Dry”). | `\"high\"` |\n| **Medium** – Risk factors are present but wound data contain **some ambiguity** (e.g., occasional “Not assessed” entries, a single borderline risk such as age ≥ 75, or a non‑home discharge with only one other minor risk). | `\"medium\"` |\n| **Low** – The only evidence is a **borderline** factor (e.g., age ≥ 75 **alone**, or discharge to a non‑home setting **without any other risk**). | `\"low\"` |\n\n---\n\n## 5. Output Specification\n\nReturn **exactly** the following JSON‑like object (order of keys does not matter). Do **not** add extra keys, change field names, or alter the format.\n\n```json\n{\n  \"reasoning\": \"<concise narrative explaining the decision, referencing the most important risk factors and any wound observations>\",\n  \"has_prevena\": <True|False>,\n  \"confidence_level\": [\"high\"|\"medium\"|\"low\"],\n  \"evidence_list\": [\n    {\n      \"tag\": \"<PT|DX|PROC|CHART>\",\n      \"index\": <integer from the original line, i.e., the number that follows the colon>,\n      \"content\": \"<exact line content as it appears in the input>\",\n      \"reasoning\": \"<short note why this line supports the decision>\"\n    },\n    ... (one entry for **every** line you cite in the reasoning)\n  ],\n  \"table_line_numbers\": {\n    \"PT\": [<list of PT indices you referenced>],\n    \"DX\": [<list of DX indices you referenced>],\n    \"PROC\": [<list of PROC indices you referenced>],\n    \"CHART\": [<list of CHART indices you referenced>]\n  },\n  \"free_text_spans\": {\n    \"DC\": []   // must be present but empty\n  }\n}",
+      "fields": [
+        {
+          "prefix": "Patient Info:",
+          "description": "${patient_info}"
+        },
+        {
+          "prefix": "Diagnoses List:",
+          "description": "${diagnoses_list}"
+        },
+        {
+          "prefix": "Procedures List:",
+          "description": "${procedures_list}"
+        },
+        {
+          "prefix": "Icu Chart Events:",
+          "description": "${icu_chart_events}"
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Has Prevena:",
+          "description": "${has_prevena}"
+        },
+        {
+          "prefix": "Confidence Level:",
+          "description": "${confidence_level}"
+        },
+        {
+          "prefix": "Evidence List:",
+          "description": "List of evidences supporting the decision. Return an EMPTY LIST [] if no relevant\nevidence is found in the patient data.\n\nIf evidence exists, each item should have:\n1. `tag` and `index`: of form [LABEL:index] for patient_info, diagnoses_list, procedures_list, icu_chart_events\n2. `content`: the EXACT verbatim text copied from the input (not your own words or reasoning)\n3. `reasoning`: why this specific text supports the decision\n\nIMPORTANT: `content` must be a direct quote from the input fields. If you cannot point to\na specific passage, do not fabricate an evidence entry — return an empty list instead."
+        }
+      ]
+    },
+    "lm": null
+  },
+  "metadata": {
+    "dependency_versions": {
+      "python": "3.12",
+      "dspy": "3.1.3",
+      "cloudpickle": "3.1"
+    }
+  }
+}

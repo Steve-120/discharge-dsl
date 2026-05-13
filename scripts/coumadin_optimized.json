@@ -1,0 +1,56 @@
+{
+  "coumadin_module.predict": {
+    "traces": [],
+    "train": [],
+    "demos": [],
+    "signature": {
+      "instructions": "## Revised Task Instructions for Coumadin/Warfarin Discharge‑Instruction Determination\n\nYou will receive a single patient record split into five sections:\n\n* **patient_info** – contains admission and discharge timestamps.  \n* **diagnoses_list** – lines prefixed with `DX`.  \n* **procedures_list** – lines prefixed with `PROC`.  \n* **lab_measurements** – lines prefixed with `LAB`.  \n* **medications** – lines prefixed with `MED`.\n\nYour job is to decide **whether the patient should leave the hospital with written Coumadin (warfarin) discharge instructions** and to output a structured response that follows the exact plain‑text template shown at the end of these instructions (no Markdown, no extra whitespace).\n\n### 1. Detect Clinical Indications for Chronic Warfarin\n\n| Indication | Detection rule (what to look for) | Warfarin required? | Target INR range |\n|------------|-----------------------------------|--------------------|------------------|\n| **Mechanical prosthetic heart valve** | • Any **PROC** line that mentions a valve replacement/implant **and** does **not** contain any tissue‑related phrase (`tissue graft`, `bioprosthetic`, `porcine`, `pericardial`, `with tissue graft`).  <br>• Any **DX** line that mentions a valve replacement/implant **without** a tissue qualifier.  <br>• If the line contains the word **mechanical** (anywhere), treat it as mechanical regardless of other wording. | **Yes – lifelong** | • **Aortic mechanical valve** → **(2.5, 3.0)**  <br>• **Mitral mechanical valve** → **(2.5, 3.5)**  <br>• **Other mechanical valves** (tricuspid/pulmonary) → **(2.5, 3.5)**  <br>• **Unspecified valve type** → **(2.5, 3.0)** (default aortic range) |\n| **Atrial fibrillation / flutter** | Any **DX** line containing the exact substrings `atrial fibrillation`, `atrial flutter`, or `AF` (case‑insensitive). | **Yes** (unless contraindicated) | **(2.0, 3.0)** |\n| **Venous thrombo‑embolism (DVT/PE)** | Any **DX** line containing `deep vein thrombosis`, `pulmonary embolism`, or `venous thromboembolism` (case‑insensitive). | **Yes** (typically 3‑month course, but discharge instructions are still required) | **(2.0, 3.0)** |\n| **Existing chronic anticoagulant therapy** | Any **DX** line that reads **exactly** `Long-term (current) use of anticoagulants` (case‑insensitive). | **No** – the patient is already on chronic anticoagulation and therefore does **not** need new Coumadin discharge instructions. | – |\n| **No indication** | None of the above are present. | **No** | – |\n\n*If more than one indication (excluding the “Existing chronic anticoagulant therapy” row) applies, select the INR range with the **highest upper bound** (i.e., the most restrictive goal).*\n\n### 2. Determine Whether Warfarin Is Prescribed at Discharge\n\n1. **Identify candidate medication lines**: keep every line where the `Medication:` field contains the word **Warfarin** (case‑insensitive).  \n2. **Exclude a line only if **all** three conditions are true:**  \n   - The `Ingredients:` field contains any of the exact strings `0 mg`, `0 dose`, **or** `Check with MD for Dose`.  \n   - The line’s `Stop time` is **earlier** than the discharge timestamp.  \n   - The line’s `Start time` is **on or before** the discharge timestamp (i.e., the order was active before discharge).  \n3. Discard any line whose `Stop time` is earlier than discharge **or** whose `Start time` is after discharge.  \n4. After applying the exclusions, if **at least one** remaining line has a `Stop time` **later** than discharge (or the `Stop time` field is missing/blank), the patient is **continuing warfarin after discharge**.  \n\n**Special rule for mechanical valves**  \nIf a mechanical valve indication is present (Section 1), set `needed=True` **regardless** of the medication check. You must still list any warfarin medication lines you examined as evidence, but the decision does not depend on them.\n\n**Special rule for existing chronic anticoagulant therapy**  \nIf the “Existing chronic anticoagulant therapy” indication is detected, set `needed=False` **even if** warfarin medication lines would otherwise suggest continuation.\n\n### 3. Choose the Target INR Goal\n\n* Use the indication(s) identified in Section 1 (excluding the “Existing chronic anticoagulant therapy” row).  \n* If multiple indications apply, pick the range with the highest upper bound.  \n* For a mechanical **aortic** valve → `(2.5, 3.0)`.  \n* For any other mechanical valve → `(2.5, 3.5)`.  \n* For AF or VTE → `(2.0, 3.0)`.  \n* If `needed=False`, set `indication='None'` and `inr_goal=None`.\n\n### 4. Assign a Confidence Level\n\n| Situation | Confidence |\n|-----------|------------|\n| Clear indication, clear ongoing prescription (or mechanical valve) with no contradictory data | **high** |\n| Ambiguous valve type, or medication line has vague dose (`Check with MD for Dose`) but other evidence points to continuation | **medium** |\n| Missing discharge time, no INR values, or conflicting data that prevent a solid conclusion | **low** |\n\n### 5. Build the Evidence List\n\nFor **every line you rely on**, create a `TabularEvidence` object:\n\n```\nTabularEvidence(tag='<TAG>', index=<INDEX>, content='<FULL LINE TEXT>', reasoning='<≤30‑word explanation>')\n```\n\n* `<TAG>` = `DX`, `PROC`, `LAB`, or `MED`.  \n* `<INDEX>` = the numeric index shown in the input (e.g., `DX:5`).  \n* `content` must be **exactly** the line from the input, including surrounding brackets.  \n* `reasoning` is a concise statement of why the line supports your decision (≤ 30 words).  \n\nCollect all used evidences **in the order you consulted them**.\n\nAlso provide a dictionary `table_line_numbers` that maps each tag to the list of indices you referenced, e.g.:\n\n```python\n{'DX': [5, 12], 'PROC': [0], 'LAB': [], 'MED': [49]}\n```\n\nIf you reference any free‑text spans (e.g., discharge comments), list them under `free_text_spans` with an appropriate key; otherwise return an empty dict.\n\n### 6. Exact Output Format (plain‑text, no Markdown)\n\n```\n### reasoning\n<Free‑form paragraph describing your overall thought process.>\n\n### coumadin_output\nneeded=<True|False> indication='<text or None>' inr_goal=(<low>, <high>)   # if needed=False, set indication='None' and inr_goal=None\n\n### confidence_level\n<high|medium|low>\n\n### evidence_list\n[TabularEvidence(tag='DX', index=3, content='[DX:3] Atrial fibrillation', reasoning='Indicates atrial fibrillation, a warfarin indication.'), \n TabularEvidence(tag='MED', index=94, content='[MED:94] Medication: Warfarin, Start time: Apr-04 10:00, Stop time: Apr-06 19:00, Frequency: DAILY (at 10:00 each day), Ingredients: Warfarin formed as Check with MD for Dose (specifically as 1 dose, each dose having 1 dose)', reasoning='Warfarin order continues past discharge, confirming ongoing therapy.')]\n\n### table_line_numbers\n{'DX': [3], 'PROC': [], 'LAB': [], 'MED': [94]}\n\n### free_text_spans\n{'DC': []}",
+      "fields": [
+        {
+          "prefix": "Patient Info:",
+          "description": "${patient_info}"
+        },
+        {
+          "prefix": "Diagnoses List:",
+          "description": "${diagnoses_list}"
+        },
+        {
+          "prefix": "Procedures List:",
+          "description": "${procedures_list}"
+        },
+        {
+          "prefix": "Lab Measurements:",
+          "description": "${lab_measurements}"
+        },
+        {
+          "prefix": "Medications:",
+          "description": "Medications administered to patient while in hospital"
+        },
+        {
+          "prefix": "Reasoning: Let's think step by step in order to",
+          "description": "${reasoning}"
+        },
+        {
+          "prefix": "Coumadin Output:",
+          "description": "Whether or not Coumadin/Warfarin instructions are needed. If needed, provide the indication in a few words,\nand the desired range of INR."
+        },
+        {
+          "prefix": "Confidence Level:",
+          "description": "${confidence_level}"
+        },
+        {
+          "prefix": "Evidence List:",
+          "description": "List of evidences supporting the decision. Return an EMPTY LIST [] if no relevant\nevidence is found in the patient data.\n\nIf evidence exists, each item shoulder have:\n1. `tag` and `index`: of form [LABEL:index] for patient_info, diagnoses_list, procedures_list, lab_measurements, medications\n2. `content`: the EXACT verbatim text copied from the input (not your own words or reasoning)\n3. `reasoning`: why this specific text supports the decision\n\nIMPORTANT: `content` must be a direct quote from the input fields. If you cannot point to\na specific passage, do not fabricate an evidence entry — return an empty list instead."
+        }
+      ]
+    },
+    "lm": null
+  },
+  "metadata": {
+    "dependency_versions": {
+      "python": "3.12",
+      "dspy": "3.1.3",
+      "cloudpickle": "3.1"
+    }
+  }
+}
