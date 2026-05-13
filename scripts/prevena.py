@@ -122,7 +122,7 @@ class HasPrevenaMM(dspy.Module):
                 assert key in overall_index, f"{tag_label}:{tag_number} not found in prompt input"
                 text, line_number = overall_index[key]
                 assert self._is_fuzzy_match_table_evidence(tag_content, text), f"{tag_label}:{tag_number} doesn't match (response: {repr(tag_content)}, actual: {repr(text)})"
-                table_line_numbers[tag_label].append(line_number)
+                table_line_numbers[tag_label].append((line_number, evidence.reasoning))
             else:
                 tag_content = standardize_hyphens(tag_content)
                 assert tag_label in ("DC", "RAD"), f"Unexpected tag {tag_label} found"
@@ -131,7 +131,7 @@ class HasPrevenaMM(dspy.Module):
                 else:
                     match = self._find_free_text_fuzzy_span(tag_content, args["radiology_reports"])
                 assert match is not None, f"Free text `{tag_content}` not found"
-                free_text_spans[tag_label].append(match)
+                free_text_spans[tag_label].append((match, evidence.reasoning))
 
         return table_line_numbers, free_text_spans
 

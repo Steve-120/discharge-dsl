@@ -2,6 +2,7 @@ import pandas as pd
 import tiktoken
 import re
 import os
+from pathlib import Path
 
 def get_ids(idx):
     ids_df = get_ids_df()
@@ -14,7 +15,8 @@ def get_idx_from_id(subject_id, hadm_id):
     return ids_df.index.get_loc(row_idx)
 
 def get_ids_df():
-    cabg_diags_df = pd.read_csv("/Users/steven/mit/cdfg/project/mimic/secondary/cabg_procedures_icd_with_notes.csv")
+    base_dir = Path(__file__).resolve().parent
+    cabg_diags_df = pd.read_csv(base_dir.parent / "data" / "secondary" / "cabg_procedures_icd_with_notes.csv")
     ids_df = cabg_diags_df.drop_duplicates(subset=("subject_id", "hadm_id"))
     return ids_df
 
@@ -85,8 +87,10 @@ DTYPES = {
     }
 }
 
+BASE_DIR = Path(__file__).resolve().parent
+
 class MimicHelper:
-    def __init__(self, subject_id: int, hadm_id: int, root_dir: str = "/Users/steven/mit/cdfg/project/mimic"):
+    def __init__(self, subject_id: int, hadm_id: int, root_dir: Path = BASE_DIR.parent / "data"):
         self.subject_id = subject_id
         self.hadm_id = hadm_id
         self.root_dir = root_dir
@@ -118,7 +122,7 @@ class MimicHelper:
             subfolder = "icu"
         else:
             subfolder = "hosp"
-        path = f"{self.root_dir}/cabg_by_subject_id/{self.subject_id}/{subfolder}/{table_name}.csv"
+        path = self.root_dir / "cabg_by_subject_id" / str(self.subject_id) / subfolder / f"{table_name}.csv"
         if not os.path.exists(path):
             print(f"path {path} doesn't exist")
             return None
@@ -166,7 +170,7 @@ class MimicHelper:
         return standardize_hyphens(patient_text)
 
     def get_d_icd_diagnoses(self):
-        return pd.read_csv(f"{self.root_dir}/hosp/d_icd_diagnoses.csv")
+        return pd.read_csv(self.root_dir / "hosp" / "d_icd_diagnoses.csv")
 
     def get_diagnoses(self):
         diagnoses_icd_df = self.get_dataframe("diagnoses_icd")
@@ -189,7 +193,7 @@ class MimicHelper:
         return standardize_hyphens(diagnoses_icd_text)
 
     def get_d_icd_procedures(self):
-        return pd.read_csv(f"{self.root_dir}/hosp/d_icd_procedures.csv")
+        return pd.read_csv(self.root_dir / "hosp" / "d_icd_procedures.csv")
 
     def get_procedures(self):
         procedures_icd_df = self.get_dataframe("procedures_icd")
@@ -212,7 +216,7 @@ class MimicHelper:
         return standardize_hyphens(procedures_icd_text)
 
     def get_d_labitems(self):
-        return pd.read_csv(f"{self.root_dir}/hosp/d_labitems.csv")
+        return pd.read_csv(self.root_dir / "hosp" / "d_labitems.csv")
 
     def get_lab_measurements(self):
         labevents_df = self.get_dataframe("labevents")
@@ -294,7 +298,7 @@ class MimicHelper:
         return standardize_hyphens(medications_text)
 
     def get_d_items(self):
-        return pd.read_csv(f"{self.root_dir}/icu/d_items.csv")
+        return pd.read_csv(self.root_dir / "icu" / "d_items.csv")
 
     def get_chart_events(self, selected_itemids=None):
         chartevents_df = self.get_dataframe("chartevents")
