@@ -96,7 +96,7 @@ def run_modules():
     body = request.json
     subject_id = int(body["subject_id"])
     hadm_id = int(body["hadm_id"])
-    data_dir = body.get("data_dir", str(DATA_DIR))
+    data_dir = Path(body.get("data_dir", str(DATA_DIR)))
 
     results = {}
     errors = {}
