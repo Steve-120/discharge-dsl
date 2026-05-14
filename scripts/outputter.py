@@ -45,7 +45,9 @@ class DischargeInstructionOutputter:
         template_phrases = self.TEMPLATES[sentence_key]
         result_unformatted = ""
 
-        for phrase_key, template in template_phrases.items():
+        keys = sorted(template_phrases.keys())
+        for phrase_key in keys:
+            template = template_phrases[phrase_key]
             result_unformatted += self.build_phrase_from_parameters(phrase_key, template, **kwargs)
         return result_unformatted
 

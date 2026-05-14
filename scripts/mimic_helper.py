@@ -281,6 +281,7 @@ class MimicHelper:
 
         medications_text = ""
         for _, row in pharmacy_df.iterrows():
+            medications_text += f"[MED:{row.id}] " 
             medications_text += f"Medication: {row.medication}, "
             medications_text += f"Start time: {row.starttime.strftime("%b-%d %H:%M") if pd.notna(row.starttime) else row.starttime}, "
             medications_text += f"Stop time: {row.stoptime.strftime("%b-%d %H:%M") if pd.notna(row.stoptime) else row.stoptime}"
@@ -298,7 +299,7 @@ class MimicHelper:
             for _, pres_row in pres_df.iterrows():
                 pres_items.append(f"{pres_row.drug} formed as {pres_row.prod_strength} (specifically as {pres_row.form_val_disp} {pres_row.form_unit_disp}, each dose having {pres_row.dose_val_rx} {pres_row.dose_unit_rx})")
             pres_text += ', '.join(pres_items)
-            medications_text += f"[MED:{row.id}] " + pres_text + '\n'
+            medications_text += pres_text + '\n'
         return standardize_hyphens(medications_text)
 
     def get_d_items(self):

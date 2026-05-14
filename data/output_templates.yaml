@@ -1,7 +1,7 @@
 # TODO: add comments to each instruction line, allow editing into yaml (changing line, adding an extra value to an enum)
 
 prevena:
-  base: |-
+  0_base: |-
     Prevena instructions:
     > The Prevena wound dressing should be left on for a total of 7 days post-operatively to receive the full benefit of the therapy. The date of Day # 7 should be written on a piece of tape on the canister to ensure that the nurse from the ___ or ___ facility knows when to remove the dressing and inspect the incision.  If the date is not written, please alert your nurse prior to discharge.
     > You may shower, but avoid getting the dressing and suction canister soiled or saturated.
@@ -11,181 +11,181 @@ prevena:
     > Do not apply any creams, lotions, or powders to your incision and monitor it daily.
     > If you notice any redness, swelling or drainage, please contact {cardiac_surgery_rep} at {cardiac_surgery_contact_info}.
 shower:
-  base:
+  0_base:
     bath_type:
       SHOWER: "Please shower daily"
       BED_BATH: "Please bed bath daily"
       WASH: "Please wash daily"
-  detail_clause:
+  1_detail_clause:
     reading_level:
       SIMPLE: ""
       STANDARD: " including washing incisions gently with mild soap"
-  prevena_clause:
+  2_prevena_clause:
     is_prevena_used:
       "false": ""
       "true":
         reading_level:
           SIMPLE: ", after Prevena is removed"
           STANDARD: ", sternally after Prevena is removed"
-  ending: ". Gently pat the wound dry, and do not rub."
+  3_ending: ". Gently pat the wound dry, and do not rub."
 
 no_baths:
-  base:
+  0_base:
     reading_level:
       SIMPLE: "No baths"
       STANDARD: "No baths or swimming"
-  clearance_condition:
+  1_clearance_condition:
     prefer_manual_clearance:
       "true": " until cleared by surgeon"
       "false": " for 1 month"
-  ending: "."
+  2_ending: "."
 
 inspect_incision:
-  base:
+  0_base:
     reading_level:
       SIMPLE: "Look at your incisions daily"
       STANDARD: "Look at your incisions daily for redness or drainage"
-  prevena_clause:
+  1_prevena_clause:
     is_prevena_used:
       "false": ""
       "true": ", once Prevena is removed"
-  ending: "."
+  2_ending: "."
 
 no_lotions:
-  base: "No lotions, creams, powders, or ointments to incision"
-  detail_clause:
+  0_base: "No lotions, creams, powders, or ointments to incision"
+  1_detail_clause:
     reading_level:
       SIMPLE: ""
       STANDARD: " until it has healed"
-  ending: "."
+  2_ending: "."
 
 sunscreen:
-  base: "Use sunscreen on incision"
-  detail_clause:
+  0_base: "Use sunscreen on incision"
+  1_detail_clause:
     reading_level:
       SIMPLE: ""
       STANDARD: " if exposed to sun"
-  ending: "."
+  2_ending: "."
 
 logging:
-  weight_timing:
+  0_weight_timing:
     reading_level:
       SIMPLE: "Each morning"
       DETAILED: "Each morning, at the same time each day"
-  weight_base:
+  1_weight_base:
     reading_level:
       SIMPLE: ", you should weigh yourself"
       DETAILED: ", you should weigh yourself with the same amount of clothes on"
-  temperature_base:
+  2_temperature_base:
     ". Every evening, take your temperature."
-  chart:
+  3_chart:
     reading_level:
       SIMPLE: ""
       STANDARD: " These should be written down on the chart provided."
 
 weight_gain:
-  base: "Report any weight gain of 2 pounds in 24 hours or 5 pounds in a week."
+  0_base: "Report any weight gain of 2 pounds in 24 hours or 5 pounds in a week."
 
 fever:
-  base: "Report any fever greater than "
-  temp:
+  0_base: "Report any fever greater than "
+  1_temp:
     reading_level:
       SIMPLE: "101°F"
       STANDARD: "100.5°F"
-  ending: "."
+  2_ending: "."
 
 no_driving:
-  base:
+  0_base:
     reading_level:
       SIMPLE: "No driving"
       DETAILED: "No driving or operating heavy machinery"
-  condition_clause: " for 4 weeks or while taking narcotics"
-  follow_up_clause:
+  1_condition_clause: " for 4 weeks or while taking narcotics"
+  2_follow_up_clause:
     prefer_manual_clearance:
       "false": ""
       "true":
         reading_level:
           SIMPLE: ", will be discussed at follow-up appointment with surgeon"
           STANDARD: ", will be discussed at follow-up appointment with surgeon when you will be able to drive"
-  ending: "."
+  3_ending: "."
 
 no_lifting:
-  base:
+  0_base:
     reading_level:
       SIMPLE: "No lifting"
       DETAILED: "No pushing, pulling, carrying, or lifting"
-  weight_limit: " more than 5 pounds"
-  time_limit:
+  1_weight_limit: " more than 5 pounds"
+  2_time_limit:
     reading_level:
       SIMPLE: " for 10 weeks"
       STANDARD: " for 10 weeks from date of surgery"
-  follow_up_clause:
+  3_follow_up_clause:
     prefer_manual_clearance:
       "false": ""
       "true": " until your post-op visit"
-  ending: "."
+  4_ending: "."
 
 shoulder:
-  base: "Encourage full shoulder range of motion, unless otherwise specified."
+  0_base: "Encourage full shoulder range of motion, unless otherwise specified."
 
 binder:
-  female_indicator:
+  0_female_indicator:
     is_female:
       "true": "Females: "
       "false": ""
-  base: "Please wear "
-  include_bra:
+  1_base: "Please wear "
+  2_include_bra:
     is_female:
       "true": "bra"
       "false": ""
-  connector:
+  3_connector:
     is_female:
       "false": ""
       "true":
         binder_type:
           NONE: ""
           otherwise: " and "
-  binder_text:
+  4_binder_text:
     binder_type:
       NONE: ""
       STERNAL: "sternal binder"
       CHEST: "chest binder"
       ABDOMINAL: "abdominal binder"
       ABDOMINAL_TO_CHEST: "abdominal binder to chest"
-  condition_clause:
+  5_condition_clause:
     reading_level:
       SIMPLE: ""
       STANDARD: " except while showering"
-  bra_detail:
+  6_bra_detail:
     is_female:
       "false": ""
       "true": 
         reading_level:
           SIMPLE: ""
           STANDARD: " to reduce pulling on incision. Avoid rubbing on lower edge"
-  binder_detail:
+  7_binder_detail:
     binder_type:
       NONE: ""
       otherwise:
         reading_level:
           SIMPLE: ""
           STANDARD: ". Please try to keep as tight as possible without compromising respiratory status"
-  ending: "."
+  8_ending: "."
 
 monitor_wound:
-  base: >-
+  0_base: >-
     Monitor wounds for signs of infection. These include redness, drainage, swelling, or increased pain.
     Should any of these symptoms occur, please contact {cardiac_surgery_rep} at {cardiac_surgery_contact_info}.
 
 contact:
-  base: "Please contact {cardiac_surgery_rep} at {cardiac_surgery_contact_info} with any questions or concerns."
-  off_hours:
+  0_base: "Please contact {cardiac_surgery_rep} at {cardiac_surgery_contact_info} with any questions or concerns."
+  1_off_hours:
     reading_level:
       SIMPLE: ""
       STANDARD: " Answering service will contact on-call person during off-hours."
 
 red_flags:
-  base:
+  0_base:
     reading_level:
       SIMPLE: ""
       DETAILED: >-
@@ -196,24 +196,24 @@ red_flags:
         malpositioned.
 
 fluid_restriction:
-  base: "Fluid restriction 1.5 liters a day "
-  condition_clause:
+  0_base: "Fluid restriction 1.5 liters a day "
+  1_condition_clause:
     prefer_manual_clearance:
       "true": "until seen"
       "false": "while on diuretics"
-  ending: "."
+  2_ending: "."
 
 smoking:
-  base: "Please stop smoking."
-  detail:
+  0_base: "Please stop smoking."
+  1_detail:
     reading_level:
       SIMPLE: ""
       STANDARD: " Information was given to you on admission regarding smoking cessation."
-  nicoderm:
+  2_nicoderm:
     is_nicoderm_given:
       "true": " You have been started on nicoderm patch to assist in quitting smoking."
       "false": ""
-  persuasion:
+  3_persuasion:
     reading_level:
       SIMPLE: ""
       DETAILED: >-
@@ -223,15 +223,15 @@ smoking:
         help you quit smoking.  Call {smoking_helpline_number}.
 
 alcohol:
-  base: "Do not drink alcohol while taking narcotic pain medicine."
+  0_base: "Do not drink alcohol while taking narcotic pain medicine."
 
 nsaid:
-  base: >-
+  0_base: >-
     Please DO NOT take any non-steroidal anti-inflammatory medications (NSAIDs such as celebrex,
     ibuprofen, advil, aleve, motrin, etc).
 
 coumadin:
-  base: >-
+  0_base: >-
     You are taking coumadin (a blood thinner) for {coumadin_indication}. Your goal INR is
     {coumadin_inr_goal_range}. First INR should be checked on {coumadin_first_date}. Please
     call or send results to {coumadin_clinician} at {coumadin_clinician_contact_info}.
