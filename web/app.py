@@ -12,7 +12,7 @@ from flask import Flask, request, jsonify, send_from_directory
 # ── Paths ─────────────────────────────────────────────────────────────────────
 PROJECT_ROOT = Path(__file__).parent.parent.resolve()
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
-DATA_DIR = Path(os.environ.get("MIMIC_DATA_DIR", "/Users/steven/mit/cdfg/project/mimic"))
+DATA_DIR = Path(os.environ.get("MIMIC_DATA_DIR", "/Users/steven/mit/cdfg/discharge-dsl/data"))
 # prevena/coumadin open files like "discharger/selected_itemids/..." relative to CWD
 MODULE_CWD = Path(os.environ.get("MODULE_CWD", str(PROJECT_ROOT)))
 STATIC_DIR = Path(__file__).parent / "static"

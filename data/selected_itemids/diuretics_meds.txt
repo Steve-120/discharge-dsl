@@ -1,0 +1,34 @@
+Furosemide
+Lasix
+Bumetanide
+Torsemide
+Metolazone
+Chlorothiazide
+Hydrochlorothiazide
+Spironolactone
+Eplerenone
+Amiloride
+Triamterene
+Potassium chloride
+KCl
+Potassium phosphate
+Potassium acetate
+Magnesium sulfate
+Magnesium oxide
+Magnesium chloride
+Magnesium gluconate
+Lisinopril
+Enalapril
+Captopril
+Ramipril
+Benazepril
+Losartan
+Valsartan
+Irbesartan
+Candesartan
+Sacubitril
+Trimethoprim-sulfamethoxazole
+Amiodarone
+Sotalol
+Dofetilide
+Digoxin

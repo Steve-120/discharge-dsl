@@ -51,7 +51,7 @@ IMPORTANT: `content` must be a direct quote from the input fields. If you cannot
 a specific passage, do not fabricate an evidence entry — return an empty list instead.""")
 
 class ShoulderMovementMM(dspy.Module):
-    def __init__(self, data_dir: str):
+    def __init__(self, data_dir: Path):
         self.data_dir = data_dir
         self.shoulder_module = dspy.ChainOfThought(ShoulderMovementSignature)
         self.refined_shoulder_module = dspy.Refine(module=self.shoulder_module, N=3, reward_fn=self.reward_function, threshold=1.0)

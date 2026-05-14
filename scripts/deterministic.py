@@ -17,7 +17,7 @@ _TOBACCO_ICD_9_PREFIXES = [
 ]
 
 
-def is_female(subject_id: int, hadm_id: int, data_dir: str) -> bool:
+def is_female(subject_id: int, hadm_id: int, data_dir: Path) -> bool:
     mh = MimicHelper(subject_id, hadm_id, root_dir=data_dir)
     patients_df = mh.get_patients()
     if patients_df is None or len(patients_df) == 0:
@@ -26,7 +26,7 @@ def is_female(subject_id: int, hadm_id: int, data_dir: str) -> bool:
     return str(gender).upper().strip() == "F"
 
 
-def uses_tobacco(subject_id: int, hadm_id: int, data_dir: str) -> bool:
+def uses_tobacco(subject_id: int, hadm_id: int, data_dir: Path) -> bool:
     mh = MimicHelper(subject_id, hadm_id, root_dir=data_dir)
     diagnoses_df = mh.get_diagnoses()
     if diagnoses_df is None or len(diagnoses_df) == 0:

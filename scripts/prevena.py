@@ -1,6 +1,7 @@
 import dspy
 import re
 from typing import List, Literal, Union, Tuple, get_type_hints, get_args
+from pathlib import Path
 from pydantic import BaseModel
 
 from mimic_helper import MimicHelper, num_tokens, get_ids, standardize_hyphens
@@ -52,7 +53,7 @@ IMPORTANT: `content` must be a direct quote from the input fields. If you cannot
 a specific passage, do not fabricate an evidence entry — return an empty list instead.""")
 
 class HasPrevenaMM(dspy.Module):
-    def __init__(self, data_dir: str):
+    def __init__(self, data_dir: Path):
         self.data_dir = data_dir
         self.has_prevena_module = dspy.ChainOfThought(HasPrevenaSignature)
         self.refined_prevena_module = dspy.Refine(module=self.has_prevena_module, N=3, reward_fn=self.reward_function, threshold=1.0)
@@ -183,7 +184,8 @@ class HasPrevenaMM(dspy.Module):
 
     def get_prompt_inputs(self, subject_id: int, hadm_id: int):
         mh = MimicHelper(subject_id, hadm_id, root_dir=self.data_dir)
-        with open("discharger/selected_itemids/prevena_chartevents.txt") as f:
+        base_dir = Path(__file__).resolve().parent.parent
+        with open(base_dir / "data" / "selected_itemids" / "prevena_chartevents.txt") as f:
             prevena_chart_items = f.read().strip().split('\n')
         chart_df = mh.get_d_items()
         chart_ids = list(chart_df[chart_df.label.isin(prevena_chart_items)].itemid)

@@ -2,6 +2,7 @@ import dspy
 import re
 from typing import List, Literal, Union, Tuple, get_type_hints, get_args
 from pydantic import BaseModel
+from pathlib import Path
 
 from mimic_helper import MimicHelper, num_tokens, get_ids, standardize_hyphens
 from rapidfuzz.fuzz import token_set_ratio, partial_ratio_alignment
@@ -64,7 +65,7 @@ IMPORTANT: `content` must be a direct quote from the input fields. If you cannot
 a specific passage, do not fabricate an evidence entry — return an empty list instead.""")
 
 class CoumadinMM(dspy.Module):
-    def __init__(self, data_dir: str):
+    def __init__(self, data_dir: Path):
         self.data_dir = data_dir
         self.coumadin_module = dspy.ChainOfThought(CoumadinSignature)
         self.refined_coumadin_module = dspy.Refine(module=self.coumadin_module, N=3, reward_fn=self.reward_function, threshold=1.0)
@@ -197,11 +198,12 @@ class CoumadinMM(dspy.Module):
 
     def get_prompt_inputs(self, subject_id: int, hadm_id: int):
         mh = MimicHelper(subject_id, hadm_id, root_dir=self.data_dir)
-        with open("discharger/selected_itemids/coumadin_labevents.txt") as f:
+        base_dir = Path(__file__).resolve().parent.parent
+        with open(base_dir / "data" / "selected_itemids" / "coumadin_labevents.txt") as f:
             coumadin_labevents_items = f.read().strip().split('\n')
         lab_df = mh.get_d_labitems()
         lab_ids = list(lab_df[lab_df.label.isin(coumadin_labevents_items)].itemid)
-        with open("discharger/selected_itemids/coumadin_meds.txt") as f:
+        with open(base_dir / "data" / "selected_itemids" / "coumadin_meds.txt") as f:
             coumadin_meds = f.read().strip().split('\n')
         prompts = {}
 

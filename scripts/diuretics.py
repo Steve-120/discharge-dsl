@@ -1,6 +1,7 @@
 import dspy
 import re
 from typing import List, Literal, Union, Tuple, get_type_hints, get_args
+from pathlib import Path
 from pydantic import BaseModel
 
 from mimic_helper import MimicHelper, num_tokens, get_ids, standardize_hyphens
@@ -52,7 +53,7 @@ IMPORTANT: `content` must be a direct quote from the input fields. If you cannot
 a specific passage, do not fabricate an evidence entry — return an empty list instead.""")
 
 class DiureticsMM(dspy.Module):
-    def __init__(self, data_dir: str):
+    def __init__(self, data_dir: Path):
         self.data_dir = data_dir
         self.diuretics_module = dspy.ChainOfThought(DiureticsSignature)
         self.refined_diuretics_module = dspy.Refine(module=self.diuretics_module, N=3, reward_fn=self.reward_function, threshold=1.0)
@@ -185,11 +186,12 @@ class DiureticsMM(dspy.Module):
 
     def get_prompt_inputs(self, subject_id: int, hadm_id: int):
         mh = MimicHelper(subject_id, hadm_id, root_dir=self.data_dir)
-        with open("discharger/selected_itemids/diuretics_labevents.txt") as f:
+        base_dir = Path(__file__).resolve().parent.parent
+        with open(base_dir / "data" / "selected_itemids" / "diuretics_labevents.txt") as f:
             diuretics_labevents_items = f.read().strip().split('\n')
         lab_df = mh.get_d_labitems()
         lab_ids = list(lab_df[lab_df.label.isin(diuretics_labevents_items)].itemid)
-        with open("discharger/selected_itemids/diuretics_meds.txt") as f:
+        with open(base_dir / "data" / "selected_itemids" / "diuretics_meds.txt") as f:
             diuretics_meds = f.read().strip().split('\n')
         prompts = {}
 
