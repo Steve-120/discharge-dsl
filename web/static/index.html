@@ -640,6 +640,10 @@ function renderForm() {
   KEY_STATE = {};
   TEMPLATE_FIELD_VALUES = {};
 
+  // Pre-fill coumadin template fields from high-confidence model output
+  if (MODULE_RESULTS.coumadin_indication)    TEMPLATE_FIELD_VALUES.coumadin_indication    = MODULE_RESULTS.coumadin_indication;
+  if (MODULE_RESULTS.coumadin_inr_goal_range) TEMPLATE_FIELD_VALUES.coumadin_inr_goal_range = MODULE_RESULTS.coumadin_inr_goal_range;
+
   const container = document.getElementById("sections-container");
   container.innerHTML = "";
 
