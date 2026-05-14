@@ -227,10 +227,12 @@ class MimicHelper:
         labevents_df = labevents_df.merge(d_labitems_df, on=["itemid"], how="left")
         return labevents_df
 
-    def get_lab_measurements_text(self):
+    def get_lab_measurements_text(self, selected_itemids=None):
         labevents_df = self.get_lab_measurements()
         if labevents_df is None:
             return None
+        if selected_itemids is not None:
+            labevents_df = labevents_df[labevents_df.itemid.isin(selected_itemids)]
 
         labevents_text = ""
         for _, row in labevents_df.iterrows():
@@ -267,10 +269,12 @@ class MimicHelper:
     def get_prescriptions(self):
         return self.get_dataframe("prescriptions")
 
-    def get_medications_text(self):
+    def get_medications_text(self, selected_meds=None):
         pharmacy_df = self.get_pharmacy()
         if pharmacy_df is None:
             return None
+        if selected_meds is not None:
+            pharmacy_df = pharmacy_df[pharmacy_df.medication.isin(selected_meds)]
         prescriptions_df = self.get_prescriptions()
         if prescriptions_df is None:
             return None
