@@ -3,7 +3,6 @@
 
 import os
 import sys
-import json
 import yaml
 import traceback
 from pathlib import Path
@@ -13,7 +12,6 @@ from flask import Flask, request, jsonify, send_from_directory
 PROJECT_ROOT = Path(__file__).parent.parent.resolve()
 SCRIPTS_DIR = PROJECT_ROOT / "scripts"
 DATA_DIR = Path(os.environ.get("MIMIC_DATA_DIR", "/Users/steven/mit/cdfg/discharge-dsl/data"))
-# prevena/coumadin open files like "discharger/selected_itemids/..." relative to CWD
 MODULE_CWD = Path(os.environ.get("MODULE_CWD", str(PROJECT_ROOT)))
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -24,11 +22,33 @@ from outputter import DischargeInstructionOutputter, BathType, BinderType, Readi
 
 outputter = DischargeInstructionOutputter()
 
+# ── Tag → prompt-key mappings per module ──────────────────────────────────────
+_PREVENA_TAG_SOURCE = {
+    "PT":    "patient_info",
+    "DX":    "diagnoses_list",
+    "PROC":  "procedures_list",
+    "CHART": "icu_chart_events",
+    "DC":    "discharge_summary",
+}
+_SHOULDER_TAG_SOURCE = {
+    "PT":   "patient_info",
+    "DX":   "diagnoses_list",
+    "PROC": "procedures_list",
+    "RAD":  "radiology_reports",
+}
+_COUMADIN_TAG_SOURCE = {
+    "DX":   "diagnoses_list",
+    "PROC": "procedures_list",
+    "LAB":  "lab_measurements",
+    "MED":  "medications",
+    "DC":   "discharge_summary",
+}
+
 # ── Lazy DSPy module cache ────────────────────────────────────────────────────
 _modules: dict = {}
 
 
-def _load_module(name: str, data_dir: str):
+def _load_module(name: str, data_dir: Path):
     key = (name, data_dir)
     if key in _modules:
         return _modules[key]
@@ -57,12 +77,57 @@ def _load_module(name: str, data_dir: str):
 
 
 def _confidence_is_high(confidence) -> bool:
-    """Return True only if every element signals high confidence."""
     if confidence is None:
         return False
     if isinstance(confidence, list):
         return bool(confidence) and all(c == "high" for c in confidence)
     return confidence == "high"
+
+
+def _collect_evidence(resp, prompts: dict, tag_to_source: dict) -> list:
+    """
+    Build a serializable evidence list from a DSPy module response.
+
+    Each item contains the evidence fields plus the resolved source_key,
+    and either a line_number (tabular) or span_start/span_end (free-text)
+    derived from resp.table_line_numbers / resp.free_text_spans.
+    """
+    if not getattr(resp, "evidence_list", None):
+        return []
+
+    tln = getattr(resp, "table_line_numbers", {}) or {}
+    fts = getattr(resp, "free_text_spans", {}) or {}
+    tag_counters: dict = {}
+    items = []
+
+    for ev in resp.evidence_list:
+        tag = ev.tag
+        idx = tag_counters.get(tag, 0)
+        tag_counters[tag] = idx + 1
+
+        item = {
+            "tag": tag,
+            "content": ev.content,
+            "reasoning": ev.reasoning,
+            "source_key": tag_to_source.get(tag),
+        }
+
+        if hasattr(ev, "index"):  # TabularEvidence
+            item["ev_index"] = ev.index
+            entries = tln.get(tag, [])
+            if idx < len(entries):
+                line_num, _ = entries[idx]
+                item["line_number"] = line_num
+        else:  # FreeTextEvidence
+            entries = fts.get(tag, [])
+            if idx < len(entries):
+                (start, end), _ = entries[idx]
+                item["span_start"] = start
+                item["span_end"] = end
+
+        items.append(item)
+
+    return items
 
 
 # ── Flask app ─────────────────────────────────────────────────────────────────
@@ -112,11 +177,18 @@ def run_modules():
         results["has_prevena_raw"] = resp.has_prevena
         results["has_prevena_confidence"] = conf if isinstance(conf, list) else [conf]
         results["has_prevena"] = resp.has_prevena if high else None
-    except Exception as e:
+
+        prompts = mod.get_prompt_inputs(subject_id, hadm_id)
+        results["has_prevena_evidence"] = {
+            "evidence": _collect_evidence(resp, prompts, _PREVENA_TAG_SOURCE),
+            "prompts": {k: v for k, v in prompts.items() if v is not None},
+        }
+    except Exception:
         errors["prevena"] = traceback.format_exc()
         results["has_prevena"] = None
         results["has_prevena_raw"] = None
         results["has_prevena_confidence"] = None
+        results["has_prevena_evidence"] = None
     finally:
         os.chdir(old_cwd)
 
@@ -130,11 +202,18 @@ def run_modules():
         results["encourage_shoulder_raw"] = resp.encourage_shoulder_movement
         results["encourage_shoulder_confidence"] = conf if isinstance(conf, list) else [conf]
         results["encourage_shoulder"] = resp.encourage_shoulder_movement if high else None
-    except Exception as e:
+
+        prompts = mod.get_prompt_inputs(subject_id, hadm_id)
+        results["encourage_shoulder_evidence"] = {
+            "evidence": _collect_evidence(resp, prompts, _SHOULDER_TAG_SOURCE),
+            "prompts": {k: v for k, v in prompts.items() if v is not None},
+        }
+    except Exception:
         errors["shoulder"] = traceback.format_exc()
         results["encourage_shoulder"] = None
         results["encourage_shoulder_raw"] = None
         results["encourage_shoulder_confidence"] = None
+        results["encourage_shoulder_evidence"] = None
     finally:
         os.chdir(old_cwd)
 
@@ -153,7 +232,7 @@ def run_modules():
             if cout.needed:
                 results["coumadin_indication"] = cout.indication
                 inr = cout.inr_goal
-                results["coumadin_inr_goal_range"] = f"{inr[0]}-{inr[1]}"
+                results["coumadin_inr_goal_range"] = f"{inr[0]} - {inr[1]}"
             else:
                 results["coumadin_indication"] = None
                 results["coumadin_inr_goal_range"] = None
@@ -161,13 +240,20 @@ def run_modules():
             results["coumadin_needed"] = None
             results["coumadin_indication"] = None
             results["coumadin_inr_goal_range"] = None
-    except Exception as e:
+
+        prompts = mod.get_prompt_inputs(subject_id, hadm_id)
+        results["coumadin_evidence"] = {
+            "evidence": _collect_evidence(resp, prompts, _COUMADIN_TAG_SOURCE),
+            "prompts": {k: v for k, v in prompts.items() if v is not None},
+        }
+    except Exception:
         errors["coumadin"] = traceback.format_exc()
         results["coumadin_needed"] = None
         results["coumadin_needed_raw"] = None
         results["coumadin_confidence"] = None
         results["coumadin_indication"] = None
         results["coumadin_inr_goal_range"] = None
+        results["coumadin_evidence"] = None
     finally:
         os.chdir(old_cwd)
 
@@ -176,7 +262,7 @@ def run_modules():
         from deterministic import is_female, uses_tobacco
         results["is_female"] = is_female(subject_id, hadm_id, data_dir)
         results["uses_tobacco"] = uses_tobacco(subject_id, hadm_id, data_dir)
-    except Exception as e:
+    except Exception:
         errors["deterministic"] = traceback.format_exc()
         results["is_female"] = None
         results["uses_tobacco"] = None
@@ -186,12 +272,10 @@ def run_modules():
 
 @app.route("/api/get-output-line", methods=["POST"])
 def get_output_line():
-    """Generate a single formatted output line server-side for the final output."""
     body = request.json
     key = body["key"]
     kwargs = body["kwargs"]
 
-    # Convert enum strings back to enum objects
     if "bath_type" in kwargs:
         kwargs["bath_type"] = BathType[kwargs["bath_type"]]
     if "binder_type" in kwargs:
