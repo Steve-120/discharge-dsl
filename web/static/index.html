@@ -370,7 +370,7 @@ button:disabled { opacity: .5; cursor: not-allowed; }
     <path d="M9 12h6M9 16h4"/>
   </svg>
   <h1>Discharge Instructions Drafter</h1>
-  <span class="hint">Press <kbd>F2</kbd> to jump to next unresolved field</span>
+  <span class="hint">Press <kbd>F2</kbd> to jump to next unresolved field &nbsp;·&nbsp; <kbd>Shift+F4</kbd> / <kbd>F4</kbd> to navigate evidence</span>
 </header>
 
 <main id="main">
@@ -750,18 +750,32 @@ function selectEvidence(moduleKey, idx) {
   renderEvidenceViewer();
 }
 
-function evKeydown(event, moduleKey, idx) {
-  const evData = getEvData(moduleKey);
-  if (!evData?.evidence) return;
-  const count = evData.evidence.length;
-  let next = idx;
-  if (event.key === "ArrowDown")      { event.preventDefault(); next = Math.min(idx + 1, count - 1); }
-  else if (event.key === "ArrowUp")   { event.preventDefault(); next = Math.max(idx - 1, 0); }
-  else return;
-  selectEvidence(moduleKey, next);
+function evNavigateGlobal(forward) {
+  const flat = [];
+  for (const m of EV_MODULES) {
+    const count = getEvData(m.key)?.evidence?.length ?? 0;
+    for (let i = 0; i < count; i++) flat.push({ moduleKey: m.key, idx: i });
+  }
+  if (flat.length === 0) return;
+
+  const mod = EV_STATE.activeModule;
+  const curIdx = EV_STATE.selectedIdx[mod] ?? 0;
+  const pos = flat.findIndex(e => e.moduleKey === mod && e.idx === curIdx);
+  const nextPos = forward
+    ? (pos + 1) % flat.length
+    : (pos - 1 + flat.length) % flat.length;
+
+  const { moduleKey, idx } = flat[nextPos];
+  EV_STATE.activeModule = moduleKey;
+  EV_STATE.selectedIdx[moduleKey] = idx;
+  renderEvidenceViewer();
   requestAnimationFrame(() =>
-    document.querySelector(`#ev-list-${moduleKey} [data-idx="${next}"]`)?.focus()
+    document.querySelector(`#ev-list-${moduleKey} [data-idx="${idx}"]`)?.focus()
   );
+}
+
+function evKeydown(event, moduleKey, idx) {
+  // F4 navigation is handled by the global keydown listener to avoid double-firing
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -853,14 +867,6 @@ function renderForm() {
     container.appendChild(section);
   }
 
-  // Open the first section by default
-  const first = container.querySelector(".section-body");
-  if (first) {
-    first.classList.add("open");
-    const chev = first.previousElementSibling.querySelector(".section-chevron");
-    if (chev) chev.classList.add("open");
-  }
-
   // Sync fields on input
   document.addEventListener("input", onFieldInput, { capture: true });
 }
@@ -878,13 +884,13 @@ function buildSection(key, defaultInclude, defaultParams) {
     <span class="status-dot" id="dot-${key}"></span>
     <span class="section-title">${meta.label}</span>
     ${meta.includeSource ? `<span class="source-tag">from model</span>` : ""}
-    <span class="section-chevron" id="chev-${key}">▶</span>
+    <span class="section-chevron open" id="chev-${key}">▶</span>
   `;
   header.onclick = () => toggleSection(key);
 
   // ── Body ──────────────────────────────────────────────────────────────────
   const body = document.createElement("div");
-  body.className = "section-body";
+  body.className = "section-body open";
   body.id = `body-${key}`;
 
   body.appendChild(buildIncludeRow(key, defaultInclude, meta));
@@ -1226,6 +1232,10 @@ function jumpToNextIssue() {
 
 document.addEventListener("keydown", e => {
   if (e.key === "F2") { e.preventDefault(); jumpToNextIssue(); }
+  if (e.key === "F4") {
+    e.preventDefault();
+    evNavigateGlobal(!e.shiftKey);
+  }
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
